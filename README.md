@@ -41,9 +41,15 @@ Standards‑defined fields — the DSC Picture Parameter Set, MSA timings, DP li
 
 ## License
 
-[WTFPL](LICENSE) — *Do What The Fuck You Want To Public License*, v2 — with an `AS-IS`, no-warranty disclaimer appended. Reverse-engineer it, copy it, mirror it, build on it, or paste it into your own dock investigation. No strings; equally, no guarantees. See [`LICENSE`](LICENSE).
+[WTFPL](LICENSE) — *Do What The Fuck You Want To Public License*, v2. Reverse-engineer it, copy it, mirror it, build on it, or paste it into your own dock investigation. No strings.
 
 A repo about reclaiming control of your own hardware deserved a license that just says *do what you want with it.*
+
+**No warranty, though** — the dump, EDIDs, and analysis are provided **as-is**:
+
+> THE WORK (including the register dump, EDID data, and all analysis herein) IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE WORK OR THE USE OR OTHER DEALINGS IN THE WORK.
+
+So: do what you want with it, but if your dock smokes, that's on you.
 
 ---
 
