@@ -39,6 +39,15 @@ Standards‑defined fields — the DSC Picture Parameter Set, MSA timings, DP li
 
 `VMMTool.exe` (MegaChips' diagnostic) reads the hub's registers over the DP AUX channel. The decode cross‑references those bytes against the public DisplayPort, HDMI, and VESA DSC specifications, and against an independent NVAPI‑side investigation of the same link from the GPU (cross‑check table at the end of the decode).
 
+## Reference material
+
+The [`reference/`](reference/) folder holds the third-party documents this teardown leans on:
+
+- `VMM5320.pdf`, `VMM5330.pdf` — MegaChips / Kinetic VMM53xx datasheets (the family the VMM5310 belongs to).
+- `HD-G218_User_manual.pdf` — the dock's own manual.
+
+**These are not mine and not under the WTFPL** — they remain under their original owners' copyright and are bundled here for reference only. See [`NOTICE`](NOTICE). Rights holders who want a file pulled: open an issue and it's gone.
+
 ## License
 
 [WTFPL](LICENSE) — *Do What The Fuck You Want To Public License*, v2. Reverse-engineer it, copy it, mirror it, build on it, or paste it into your own dock investigation. No strings.

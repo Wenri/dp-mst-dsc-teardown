@@ -1,0 +1,19 @@
+THIRD-PARTY REFERENCE MATERIAL — NOTICE
+=======================================
+
+The files under reference/ are NOT covered by this repository's WTFPL
+license (see LICENSE). They are third-party copyrighted documents,
+bundled here for reference and archival alongside the analysis in this
+repo. All rights remain with their respective owners:
+
+  reference/VMM5320.pdf              MegaChips / Kinetic — VMM5320
+  reference/VMM5330.pdf              MegaChips / Kinetic — VMM5330
+                                     DisplayPort MST controller datasheets
+  reference/HD-G218_User_manual.pdf  the HD-G218 dock's manufacturer
+
+No ownership or copyright is claimed over these documents, and the
+WTFPL grant in LICENSE does not extend to them.
+
+Takedown: if you are a rights holder and want a file removed, open an
+issue or contact the repository owner and it will be taken down
+promptly.
