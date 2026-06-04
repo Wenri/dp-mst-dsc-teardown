@@ -39,6 +39,12 @@ Standards‑defined fields — the DSC Picture Parameter Set, MSA timings, DP li
 
 `VMMTool.exe` (MegaChips' diagnostic) reads the hub's registers over the DP AUX channel. The decode cross‑references those bytes against the public DisplayPort, HDMI, and VESA DSC specifications, and against an independent NVAPI‑side investigation of the same link from the GPU (cross‑check table at the end of the decode).
 
+## License
+
+[WTFPL](LICENSE) — *Do What The Fuck You Want To Public License*, v2 — with an `AS-IS`, no-warranty disclaimer appended. Reverse-engineer it, copy it, mirror it, build on it, or paste it into your own dock investigation. No strings; equally, no guarantees. See [`LICENSE`](LICENSE).
+
+A repo about reclaiming control of your own hardware deserved a license that just says *do what you want with it.*
+
 ---
 
 *Captured from my own hardware. The register and EDID data is what the chip reported about my two monitors; there are no credentials or secrets in it. Shared in the hope it's useful to the next person trying to find out what their dock is really doing.*
