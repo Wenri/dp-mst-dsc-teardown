@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+vmm_*.out.txt
+vmm_*.decoded.txt
+vmm_*.json

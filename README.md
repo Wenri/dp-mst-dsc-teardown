@@ -2,10 +2,11 @@
 
 Ground‑truth reverse‑engineering of the DisplayPort Multi‑Stream Transport (MST) hub inside a USB‑C dock — a **Kinetic / MegaChips VMM5310** (the "Panamera" VMM53xx family) — fanning a single laptop GPU output out to two external monitors.
 
-This repo is two files and the story that connects them:
+This repo is two files, a tool, and the story that connects them:
 
 - **[`dump.txt`](dump.txt)** — the raw register + EDID dump read out of the hub over the DisplayPort **AUX** channel with MegaChips' own **VMMTool** diagnostic. 2,136 registers, three EDIDs. This is the ground truth: bits read off the silicon, not inferred.
 - **[`VMM5310_dump_decoded.md`](VMM5310_dump_decoded.md)** — a full decode of that dump. Every block I could place is placed, every value annotated with where it came from, and an explicit line drawn between *proven from the bits* and *inferred by correlation*.
+- **[`vmmdump/`](vmmdump/)** — the capture, reproduced: a Python tool that reads the same hub live from **Linux** over DP AUX — even through the NVIDIA proprietary driver, which exposes no AUX device nodes at all. It re-verified the Windows dump register for register.
 
 ## The setup
 
@@ -38,6 +39,19 @@ Standards‑defined fields — the DSC Picture Parameter Set, MSA timings, DP li
 ## Method
 
 `VMMTool.exe` (MegaChips' diagnostic) reads the hub's registers over the DP AUX channel. The decode cross‑references those bytes against the public DisplayPort, HDMI, and VESA DSC specifications, and against an independent NVAPI‑side investigation of the same link from the GPU (cross‑check table at the end of the decode).
+
+## Reproducing it on Linux: `vmmdump`
+
+[`vmmdump/`](vmmdump/) re‑captures everything in `dump.txt` live, without Windows or VMMTool: chip/firmware identity, the full register space, the decoded link/stream/DSC view, and the monitor EDIDs.
+
+The catch it solves: on a dock wired to an NVIDIA GPU there is no `/dev/drm_dp_aux*` — the NVIDIA driver (proprietary *and* open) never creates those nodes, so the usual Linux path to a Synaptics MST hub's DPCD is a dead end. `vmmdump` instead issues native AUX transactions through the driver's Resource‑Manager ioctl ABI (`NV0073_CTRL_CMD_DP_AUXCH_CTRL` on `/dev/nvidiactl`, root‑only, stock driver). A `/dev/drm_dp_aux*` backend covers amdgpu/i915/nouveau hosts. Reads only — it never writes the hub's flash.
+
+```sh
+sudo python3 -m vmmdump --edid               # live: identity + decode + EDIDs
+python3 -m vmmdump --decode-file dump.txt    # offline: decode this repo's dump
+```
+
+Read live and diffed against the Windows capture: identity exact, every register the decoder interprets identical, ~92 % of the full 2,141‑register dump byte‑identical — and 100 % of the differences sit in live‑adaptive fields (PHY equalizer taps, training status, counters) that no two captures share. Details, usage, and the verification write‑up: [`vmmdump/README.md`](vmmdump/README.md).
 
 ## Reference material
 
