@@ -63,6 +63,8 @@ def main(argv=None) -> int:
                    help="offline: decode a VL8xx flash image (no hardware)")
     p.add_argument("--follow", metavar="FILE",
                    help="offline: recursive-follow an image's 8051 code, list functions")
+    p.add_argument("--fndiff", metavar="FILE", nargs=2,
+                   help="offline: function-level diff between two VL8xx images")
     args = p.parse_args(argv)
 
     if args.decode_fw:                       # offline, no device needed
@@ -82,6 +84,18 @@ def main(argv=None) -> int:
               f"funcs={len(tr.funcs)} insns={len(tr.insns)} "
               f"reachable={tr.reachable_bytes}B max=0x{hi:04x} jumptables={len(tr.indirect)}")
         print("function entries:", ", ".join(f"0x{a:04x}" for a in sorted(tr.funcs)))
+        return 0
+
+    if args.fndiff:                          # offline function-level diff
+        from . import fw, trace
+        import os.path
+        codes = []
+        for path in args.fndiff:
+            blob = open(path, "rb").read()
+            codes.append(blob[fw.decode_container(blob).code_start:])
+        print(trace.format_fndiff(codes[0], codes[1],
+                                  os.path.basename(args.fndiff[0]),
+                                  os.path.basename(args.fndiff[1])))
         return 0
 
     vid, pid = (int(x, 16) for x in args.vidpid.split(":"))

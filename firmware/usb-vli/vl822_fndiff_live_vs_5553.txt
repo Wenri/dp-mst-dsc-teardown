@@ -1,0 +1,90 @@
+function-level diff: vl822_live_fw_6.43.bin vs VL822_Q8_5553_PID30Dx_Hybrid_Tier1_20211019.bin  (265 vs 256 funcs)
+  identical (relocated only) : 121
+  operand-only (config/map)  : 64
+  structural (logic change)  : 30
+  vl822_live_fw_6.43.bin-only added         : 38 (+12 stubs)
+  VL822_Q8_5553_PID30Dx_Hybrid_Tier1_20211019.bin-only removed       : 41
+
+  STRUCTURAL  vl822_live_fw_6.43.bin 0x6523 ~ VL822_Q8_5553_PID30Dx_Hybrid_Tier1_20211019.bin 0x611f (ratio 0.98):
+     CALL
+    -MOV DPTR,#0x9089
+    -MOV A,#0x01
+    -MOVX @DPTR,A
+    +CALL
+     CLR A
+
+  STRUCTURAL  vl822_live_fw_6.43.bin 0x7286 ~ VL822_Q8_5553_PID30Dx_Hybrid_Tier1_20211019.bin 0x6eb6 (ratio 0.98):
+     DJNZ R0,@
+    -MOV SP,#0xA1
+    +MOV SP,#0xA4
+     JMP
+     JMP
+    +ANL A,R7
+     XRL A,R4
+    -XRL A,R6
+     CLR A
+
+  STRUCTURAL  vl822_live_fw_6.43.bin 0x66ce ~ VL822_Q8_5553_PID30Dx_Hybrid_Tier1_20211019.bin 0x62cc (ratio 0.94):
+     MOV 0x36,A
+    -MOV R0,#0x8B
+    +MOV R0,#0x8E
+     MOV @R0,A
+     MOV @R0,A
+    -MOV R0,#0x67
+    +MOV R0,#0x6A
+     MOV A,@R0
+     MOV A,0x37
+    -MOV B,#0x10
+    -MUL AB
+    -ADD A,#0x00
+    +CALL
+     CALL
+     MOV A,0x37
+    +MOV B,#0x10
+    +MUL AB
+    +ADD A,#0x02
+     CALL
+     ANL 0x1E,#0xF7
+    -MOV DPTR,#0x504C
+    +MOV DPTR,#0x5059
+     MOVX A,@DPTR
+
+  ADDED (vl822_live_fw_6.43.bin-only) 0x29f1:
+    CLR A
+    MOV 0x28,A
+    MOV A,0x5A
+    CALL
+    ADD A,R2
+    DEC R3
+    NOP
+    ADD A,R2
+    JMP @A+DPTR
+    JMP
+    ADD A,R0
+    JMP
+    RR A
+    JNB B.3,@
+    JNB B.0,@
+    CALL
+    INC @R0
+    CALL
+
+  ADDED (vl822_live_fw_6.43.bin-only) 0x33b4:
+    CLR A
+    MOV 0x27,A
+    MOV A,0x5E
+    CALL
+    RLC A
+    DJNZ 0x00,@
+    INC R4
+    JMP
+    RR A
+    ADDC A,0x12
+    INC A
+    ADDC A,@R0
+    MOV 0x05,R5
+    ADDC A,@R1
+    DEC R7
+    INC @R0
+    ADDC A,@R1
+    JZ

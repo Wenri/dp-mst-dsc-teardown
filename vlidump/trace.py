@@ -9,6 +9,8 @@ table. Code is the 8051 image with code address 0 at ``code[0]``.
 """
 from __future__ import annotations
 
+import difflib
+from collections import defaultdict
 from dataclasses import dataclass, field
 
 from . import i8051
@@ -103,3 +105,112 @@ def fn_fingerprint(code: bytes, entry: int, maxins: int = 96) -> tuple:
 def fingerprints(code: bytes, tr: Trace) -> set:
     """The set of function fingerprints for a build (entries + call targets)."""
     return {fn_fingerprint(code, e) for e in (set(tr.entries) | tr.funcs)}
+
+
+# --- function-level diff between two builds -------------------------------- #
+# Normalized instruction tokens drop code addresses and collapse jump/call
+# encodings (AJMP/LJMP/SJMP -> JMP, A/LCALL -> CALL) so a routine matches across
+# builds despite relocation, but KEEP operands (immediates, SFR/RAM directs) so
+# constant/register changes still show as differences.
+
+def _norm_token(ins) -> str:
+    mn = ins.text.split()[0]
+    if mn in _UNCOND:
+        return "JMP"
+    if mn in _CALL:
+        return "CALL"
+    if ins.target is not None:                  # conditional branch: drop target
+        return (ins.text.rsplit(",", 1)[0] + ",@") if "," in ins.text else mn
+    return ins.text
+
+
+def function_bodies(code: bytes, cap: int = 256) -> dict:
+    """{entry: (norm_tokens, opcodes)} for each function, entry..first-RET."""
+    tr = follow(code)
+    ents = sorted(set(tr.entries) | tr.funcs)
+    out: dict = {}
+    for i, e in enumerate(ents):
+        end = min(ents[i + 1] if i + 1 < len(ents) else len(code), e + cap)
+        toks: list = []
+        ops: list = []
+        a = e
+        while a < end:
+            ins = i8051.decode_one(code, a, 0)
+            ops.append(code[a])
+            toks.append(_norm_token(ins))
+            if ins.text.split()[0] in _STOP:
+                break
+            a += ins.length
+        while toks and toks[-1] == "NOP":       # trim trailing padding
+            toks.pop()
+            ops.pop()
+        if toks:
+            out[e] = (tuple(toks), tuple(ops))
+    return out
+
+
+def diff_functions(code_a: bytes, code_b: bytes, thresh: float = 0.62) -> dict:
+    """Classify A's functions vs B: identical / operand-only / structural /
+    added (A-only) / removed (B-only). identical = same normalized tokens
+    (logic + operands, only relocated). operand-only = fuzzy match with equal
+    opcode sequence (constants/addresses changed). structural = fuzzy match,
+    opcodes differ (real logic change)."""
+    A = function_bodies(code_a)
+    B = function_bodies(code_b)
+    bx = defaultdict(list)
+    for e, (t, _o) in B.items():
+        bx[t].append(e)
+    identical: list = []
+    used_b: set = set()
+    rem_a = dict(A)
+    for e, (t, _o) in list(A.items()):
+        cand = [b for b in bx.get(t, ()) if b not in used_b]
+        if cand:
+            identical.append((e, cand[0]))
+            used_b.add(cand[0])
+            del rem_a[e]
+    rem_b = [(e, v) for e, v in B.items() if e not in used_b]
+    operand_only: list = []
+    structural: list = []
+    added: list = []
+    for e, (t, o) in rem_a.items():
+        best = None
+        br = 0.0
+        for be, (bt, _bo) in rem_b:
+            r = difflib.SequenceMatcher(None, t, bt).quick_ratio()
+            if r > br:
+                br, best = r, be
+        if best is not None:
+            bt, bo = dict(rem_b)[best]
+            real = difflib.SequenceMatcher(None, t, bt).ratio()
+            if real >= thresh:
+                (operand_only if o == bo else structural).append((e, best, real))
+                rem_b = [x for x in rem_b if x[0] != best]
+                continue
+        added.append(e)
+    removed = [e for e, _ in rem_b]
+    return dict(identical=identical, operand_only=operand_only,
+                structural=structural, added=added, removed=removed, A=A, B=B)
+
+
+def format_fndiff(code_a: bytes, code_b: bytes, name_a="A", name_b="B") -> str:
+    d = diff_functions(code_a, code_b)
+    A, B = d["A"], d["B"]
+    real_added = [e for e in d["added"] if len(A[e][0]) > 2]
+    L = [f"function-level diff: {name_a} vs {name_b}  ({len(A)} vs {len(B)} funcs)",
+         f"  identical (relocated only) : {len(d['identical'])}",
+         f"  operand-only (config/map)  : {len(d['operand_only'])}",
+         f"  structural (logic change)  : {len(d['structural'])}",
+         f"  {name_a}-only added         : {len(real_added)} "
+         f"(+{len(d['added']) - len(real_added)} stubs)",
+         f"  {name_b}-only removed       : {len(d['removed'])}"]
+    for e, be, r in sorted(d["structural"], key=lambda x: -x[2])[:3]:
+        L.append(f"\n  STRUCTURAL  {name_a} 0x{e:04x} ~ {name_b} 0x{be:04x} (ratio {r:.2f}):")
+        for ln in difflib.unified_diff(list(B[be][0]), list(A[e][0]),
+                                       lineterm="", n=1, fromfile=name_b, tofile=name_a):
+            if ln[:3] not in ("---", "+++", "@@ "):
+                L.append("    " + ln)
+    for e in real_added[:2]:
+        L.append(f"\n  ADDED ({name_a}-only) 0x{e:04x}:")
+        L.extend("    " + t for t in A[e][0][:18])
+    return "\n".join(L)

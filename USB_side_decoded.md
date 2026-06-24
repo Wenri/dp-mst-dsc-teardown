@@ -175,6 +175,40 @@ So our `6.43` is a legitimate VL822 build from the same source tree as VIA's
 references, closest to the 5553 mainline, customized for this dock (descriptors +
 the bundled VL103 PD/billboard) — not a fork and not a copy of any single reference.
 
+### Are there real function changes? (`6.43` vs `5553`)
+
+`vlidump --fndiff A B` pairs functions across builds with a representation that's
+robust to relocation + jump-encoding (AJMP↔LJMP) but keeps operands, then splits
+the differences: *identical* (only relocated), *operand-only* (same opcodes,
+changed constants/addresses), *structural* (different opcodes = real logic), and
+*added/removed*. Full report:
+[`firmware/usb-vli/vl822_fndiff_live_vs_5553.txt`](firmware/usb-vli/vl822_fndiff_live_vs_5553.txt).
+
+| class | count (of 265) | meaning |
+|---|---|---|
+| identical | 121 | same bytes, relocated |
+| operand-only | 64 | constants / memory-map shifted, same logic |
+| structural | 30 | **real logic change** |
+| added (live-only) | 38 (+12 stubs) | routines only in our build |
+| removed (5553-only) | 41 | routines only in 5553 |
+
+So ~70% (identical + operand-only) is relocation/config; the real differences are
+**30 structural + ~38/41 added/removed**. Read from the code:
+
+- *operand-only / config:* a whole XDATA block shifted `+5` (`#0x5015→#0x501A`…),
+  IRAM pointers `+3` (`#0x9E→#0xA1`), the crt0 stack `MOV SP,#0xA1→#0xA4`, lone
+  constants (`MOV A,#0x92→#0x12`). Same algorithms, different map/tuning.
+- *structural (real):* `5553` pokes a register inline — `MOV DPTR,#0x9089; MOV
+  A,#1; MOVX @DPTR,A` — where `6.43` substitutes a `CALL`; another routine reorders
+  a `MOV B,#0x10 / MUL AB` past a call and changes an addend `#0x00→#0x02`; the
+  crt0 init swaps `XRL A,R6` for `ANL A,R7`.
+- *added:* genuine routines present only in our image (e.g. `0x29f1`, `0x33b4`)
+  using jump tables + XDATA — consistent with this build's extra PD/billboard scope.
+
+Verdict: **the same firmware, not a fork** — but yes, with real per-build logic
+changes (~30 modified + ~38/41 added/removed routines) layered on top of the
+relocation/register-map/tuning differences.
+
 ## Proven vs inferred
 
 - **Proven:** the chip identities (USB descriptors + PIDs), the topology, the
