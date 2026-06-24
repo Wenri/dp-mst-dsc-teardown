@@ -99,7 +99,8 @@ VIA distributes reference firmware via station-drivers (no login). The dock's
 (2020-05-11); the primary hub's reference is **VL822-Q8 v5553** (2022-07-25). These
 ship with VIA's Windows MP/ISP tooling (`HUBIspTool.exe`, `HubUpgradeFW.exe`).
 They are OEM-generic, not drop-in for this dock's `6.43` build, and are
-copyrighted — collected out-of-tree, not in this repo (see `NOTICE`).
+copyrighted — archived under [`firmware/`](firmware/) with attribution in
+[`NOTICE`](NOTICE) (the WTFPL does not cover them).
 
 ## Proven vs inferred
 

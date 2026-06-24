@@ -14,6 +14,26 @@ repo. All rights remain with their respective owners:
 No ownership or copyright is claimed over these documents, and the
 WTFPL grant in LICENSE does not extend to them.
 
+The files under firmware/ are likewise NOT covered by the WTFPL. They are
+third-party copyrighted firmware images and vendor tools, bundled for
+teardown/archival, with all rights reserved to their owners:
+
+  firmware/usb-vli/  VIA Labs (VLI) reference firmware (.bin) for the
+                     VL822/VL817 USB hub and VL102/VL103 USB-C PD controllers,
+                     plus VIA's Windows MP/ISP/update tools (HUBIspTool.exe,
+                     HubUpgradeFW.exe, VLIHubAPI.dll, VLIHubPDUpdateTool, etc.).
+                     Obtained from public mirrors (station-drivers.com).
+  firmware/live/     A live readout of this unit's VL822 SPI flash. The flash
+                     CONTENTS are VIA Labs firmware (their copyright); only the
+                     act of reading our own chip is ours.
+
+Exceptions (these ARE original to this repo, WTFPL like the rest):
+  firmware/MANIFEST.md, firmware/hashes.txt, firmware/dp-vmm/NOTE.md, and the
+  firmware/dp-vmm/vmm5310_live.* live register capture of our own VMM5310.
+
+No ownership or copyright is claimed over the third-party firmware/tools, and
+the WTFPL grant in LICENSE does not extend to them.
+
 Takedown: if you are a rights holder and want a file removed, open an
 issue or contact the repository owner and it will be taken down
 promptly.

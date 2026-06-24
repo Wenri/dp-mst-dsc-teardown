@@ -1,0 +1,37 @@
+=== VMM5310 identity ===
+CHIP ID         : VMM5310
+CHIP family     : Panamera
+Firmware version: 5.04.135
+Branch OUI      : 90:cc:24  (Synaptics)
+Branch dev id   : 'SYNAS\x10'
+HW revision     : 0x10
+RC capability   : 0x94  (remote-control supported)
+Board ID        : 0x0002 (2)
+Customer ID     : 0xf51b (62747)
+
+=== link / streams / DSC / outputs ===
+RX: MST 2-lane HBR3 mode, DSC ON
+   MST time slots: 63
+   FW build stamp: 0x20160729 (2016-07-29)
+
+RFRM0: 1920x1080  ctrl=0x5000008A
+   HT:2100 VT:1120 HA:1920 VA:1080 HS:92 VS:36 HSW:44 VSW:5 HPOL:0 VPOL:0
+   DSC 1.2: PIC 1920x1080, Slice 1920x1080, 10.00 bpp, ratio 2.4:1, chunk 2400, line-buf 9
+
+RFRM1: (idle)
+
+RFRM2: 2560x1440  ctrl=0x5000008A
+   HT:2720 VT:1481 HA:2560 VA:1440 HS:112 VS:38 HSW:32 VSW:5 HPOL:0 VPOL:0
+   DSC: off (ctrl=0x80000004)
+
+TX0: HDMI output
+
+TX1: DP output, 4 lane(s)
+
+TX2: DP output, 4 lane(s)
+   2560x1440  HT:2720 VT:1481
+
+=== EDIDs (recovered from hub SRAM) ===
+  DTZ 4426 "D1"  preferred 1920x1080 @ 235.20MHz  (sram@0x0914)
+  VSC A93D "VA3209-QHD"  preferred 2560x1440 @ 241.50MHz  (sram@0x0EF8)
+  SYN 3000 "Non-PnP"  preferred 1024x768 @ 65.00MHz  (sram@0x1600)
