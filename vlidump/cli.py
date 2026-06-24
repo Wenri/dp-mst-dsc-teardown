@@ -61,12 +61,27 @@ def main(argv=None) -> int:
     p.add_argument("--spi-chunk", default="64", help="bytes per SPI transfer")
     p.add_argument("--decode-fw", metavar="FILE",
                    help="offline: decode a VL8xx flash image (no hardware)")
+    p.add_argument("--follow", metavar="FILE",
+                   help="offline: recursive-follow an image's 8051 code, list functions")
     args = p.parse_args(argv)
 
     if args.decode_fw:                       # offline, no device needed
         from . import fw
         with open(args.decode_fw, "rb") as fh:
             print(fw.render(fh.read()))
+        return 0
+
+    if args.follow:                          # offline recursive-follow summary
+        from . import fw, trace
+        blob = open(args.follow, "rb").read()
+        c = fw.decode_container(blob)
+        code = blob[c.code_start:]
+        tr = trace.follow(code)
+        hi = max(tr.insns) if tr.insns else 0
+        print(f"{c.family} code@0x{c.code_start:04x}: entries={tr.entries} "
+              f"funcs={len(tr.funcs)} insns={len(tr.insns)} "
+              f"reachable={tr.reachable_bytes}B max=0x{hi:04x} jumptables={len(tr.indirect)}")
+        print("function entries:", ", ".join(f"0x{a:04x}" for a in sorted(tr.funcs)))
         return 0
 
     vid, pid = (int(x, 16) for x in args.vidpid.split(":"))

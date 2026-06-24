@@ -13,7 +13,7 @@ A hardware reverse-engineering teardown of the Kinetic/MegaChips **VMM5310** DP 
 
 2. **`vmmdump/`** — a stdlib-only Python package that reproduces the VMMTool dump live on Linux over the DP AUX channel. No packaging config; it runs as a plain directory from the repo root.
 
-3. **`vlidump/`** — the USB-side counterpart: a stdlib-only package that reads the dock's **VIA Labs VL822/VL817** USB hub over plain usbfs (the VL822 enumerates as a normal USB device, so no NVIDIA RM ioctl is needed). Read-only; protocol reimplemented from fwupd's `vli` plugin (LGPL — reference only, never copy). Also decodes VL8xx flash images offline: `vlidump/i8051.py` is a compact stdlib MCS-51 disassembler and `vlidump/fw.py` decodes the container + USB descriptors + 8051 entry (`python3 -m vlidump --decode-fw <image>`). Findings in `USB_side_decoded.md`. Live read: `sudo python3 -m vlidump`.
+3. **`vlidump/`** — the USB-side counterpart: a stdlib-only package that reads the dock's **VIA Labs VL822/VL817** USB hub over plain usbfs (the VL822 enumerates as a normal USB device, so no NVIDIA RM ioctl is needed). Read-only; protocol reimplemented from fwupd's `vli` plugin (LGPL — reference only, never copy). Also decodes VL8xx flash images offline: `vlidump/i8051.py` is a compact stdlib MCS-51 disassembler, `vlidump/fw.py` decodes the container + USB descriptors + 8051 entry (`--decode-fw <image>`), and `vlidump/trace.py` does recursive-descent following + opcode-fingerprint function comparison across builds (`--follow <image>`). Findings in `USB_side_decoded.md`. Live read: `sudo python3 -m vlidump`.
 
 ## Commands
 

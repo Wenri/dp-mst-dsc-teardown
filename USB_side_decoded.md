@@ -142,6 +142,39 @@ recognizable C-runtime start:
 The full decode is committed at
 [`firmware/usb-vli/vl822_live_fw_6.43.decoded.txt`](firmware/usb-vli/vl822_live_fw_6.43.decoded.txt).
 
+## Comparing all five VL822 builds
+
+`vlidump/trace.py` does recursive-descent "following" from the reset + interrupt
+vectors (handling LJMP/AJMP/SJMP, conditional branches, L/ACALL → functions,
+stopping at RET, flagging `JMP @A+DPTR` jump tables). `vlidump --follow <image>`
+prints the per-image summary. Because the builds aren't address-aligned, code is
+compared by **opcode-only function fingerprints** (operands/addresses dropped), so
+the same routine matches across builds despite relocation. Full report:
+[`firmware/usb-vli/vl822_builds_compared.txt`](firmware/usb-vli/vl822_builds_compared.txt).
+
+What the five builds (our `6.43` + the four reference bins) show:
+
+- **Same codebase + toolchain.** Each is ~14–15 KB reachable code, ~240–260
+  functions, 2–4 jump tables — and the **crt0/reset handler is opcode-identical
+  across all five** (only relocated). They're one firmware family built the same way.
+- **50–72% of functions are shared** (fingerprint jaccard). The references cluster
+  tightest (5554↔0823 72%, 5554↔9043 68%); our **`6.43` is closest to `5553`**
+  (60.5%, **164 shared functions**, 53 live-only, 54 ref-only) — matching the
+  byte-level hint from the earlier comparison.
+- **The differences are layered, not random:**
+  - *branding* — `5553/5554` carry Lenovo descriptors (`PID30Dx`, so 0 `2109`
+    descriptors found); `9043`/`0823` keep `2109`.
+  - *variant* — `Q5 0823` exposes `2109:1822`/`4822` (different port map) vs the
+    `Q7/Q8`'s `0822`.
+  - *tier* — header `type` is `0x0040` only for `5554` (Tier2); the rest `0x0030`.
+  - *our dock is the outlier in scope* — only the `6.43` image bundles the
+    **billboard (`8818`) and the VL103 PD bank (`0103`)**; every reference bin is
+    hub-only (~32–40 KB, no PD, no alt-mode billboard).
+
+So our `6.43` is a legitimate VL822 build from the same source tree as VIA's
+references, closest to the 5553 mainline, customized for this dock (descriptors +
+the bundled VL103 PD/billboard) — not a fork and not a copy of any single reference.
+
 ## Proven vs inferred
 
 - **Proven:** the chip identities (USB descriptors + PIDs), the topology, the
