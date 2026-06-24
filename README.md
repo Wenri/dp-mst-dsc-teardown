@@ -2,11 +2,12 @@
 
 Ground‑truth reverse‑engineering of the DisplayPort Multi‑Stream Transport (MST) hub inside a USB‑C dock — a **Kinetic / MegaChips VMM5310** (the "Panamera" VMM53xx family) — fanning a single laptop GPU output out to two external monitors.
 
-This repo is two files, a tool, and the story that connects them:
+This repo covers **both halves** of the dock — the DisplayPort side and the USB side — and the story that connects them:
 
 - **[`dump.txt`](dump.txt)** — the raw register + EDID dump read out of the hub over the DisplayPort **AUX** channel with MegaChips' own **VMMTool** diagnostic. 2,136 registers, three EDIDs. This is the ground truth: bits read off the silicon, not inferred.
 - **[`VMM5310_dump_decoded.md`](VMM5310_dump_decoded.md)** — a full decode of that dump. Every block I could place is placed, every value annotated with where it came from, and an explicit line drawn between *proven from the bits* and *inferred by correlation*.
-- **[`vmmdump/`](vmmdump/)** — the capture, reproduced: a Python tool that reads the same hub live from **Linux** over DP AUX — even through the NVIDIA proprietary driver, which exposes no AUX device nodes at all. It re-verified the Windows dump register for register.
+- **[`vmmdump/`](vmmdump/)** — the DP capture, reproduced: a Python tool that reads the same hub live from **Linux** over DP AUX — even through the NVIDIA proprietary driver, which exposes no AUX device nodes at all. It re-verified the Windows dump register for register.
+- **[`vlidump/`](vlidump/)** + **[`USB_side_decoded.md`](USB_side_decoded.md)** — the *other* half: the **VIA Labs VL822/VL817** USB hub (and its VIA Labs USB-C PD controller) that carries USB 3 over the Type-C cable's other lane pair. `vlidump` reads it live over plain USB; the decode maps its firmware flash. The dock splits its four Type-C lanes 2 (DP) + 2 (USB) — which is *why* DSC is load-bearing on the DP side.
 
 ## The setup
 

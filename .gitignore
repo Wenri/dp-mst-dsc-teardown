@@ -3,3 +3,10 @@ __pycache__/
 vmm_*.out.txt
 vmm_*.decoded.txt
 vmm_*.json
+
+# vendor firmware images + live flash/EEPROM dumps: copyrighted, never commit
+# (see NOTICE). vlidump --spi-dump output and any reference firmware live out of tree.
+*.bin
+*.eeprom
+*.rom
+/firmware/

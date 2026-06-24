@@ -13,6 +13,8 @@ A hardware reverse-engineering teardown of the Kinetic/MegaChips **VMM5310** DP 
 
 2. **`vmmdump/`** — a stdlib-only Python package that reproduces the VMMTool dump live on Linux over the DP AUX channel. No packaging config; it runs as a plain directory from the repo root.
 
+3. **`vlidump/`** — the USB-side counterpart: a stdlib-only package that reads the dock's **VIA Labs VL822/VL817** USB hub over plain usbfs (the VL822 enumerates as a normal USB device, so no NVIDIA RM ioctl is needed). Read-only; protocol reimplemented from fwupd's `vli` plugin (LGPL — reference only, never copy). Findings in `USB_side_decoded.md`. Run as `sudo python3 -m vlidump`.
+
 ## Commands
 
 ```sh
@@ -51,7 +53,7 @@ The CLI has three modes: `--list-devices`, offline (`--decode-file`, transport/R
 
 ## Hard constraints
 
-- **This tool talks to a live display link.** RC sessions must always be wrapped enable → … → disable (use the `finally` in `cli.py` or `SynapticsRC` as a context manager), and only non-destructive opcodes are allowed: ENABLE/DISABLE_RC, ReadFromMemory, ReadFromTxDpcd. Never issue flash/EEPROM-write opcodes.
+- **This tool talks to a live display link.** RC sessions must always be wrapped enable → … → disable (use the `finally` in `cli.py` or `SynapticsRC` as a context manager), and only non-destructive **read** opcodes are allowed: ENABLE/DISABLE_RC, ReadFromMemory, ReadFromTxDpcd, ReadFromEeprom. Never issue flash/EEPROM-**write** opcodes. Note: on Panamera, `ReadFromEeprom` returns all-zero while the on-chip ESM (firmware MCU) is running — getting real flash bytes needs an ESM-disable + reset write sequence that blanks the live link, which this repo deliberately does NOT implement.
 - Live-adaptive registers (PHY taps, training status, counters) legitimately differ between captures — only ~92% of a full dump is byte-stable vs `dump.txt`. Don't treat such diffs as bugs; §13 of the decode flags these regions.
 - Generated outputs (`vmm_*.out.txt`, `vmm_*.decoded.txt`, `vmm_*.json`) are gitignored — keep that naming for new outputs.
 - License is WTFPL; new source files carry `# SPDX-License-Identifier: WTFPL`. Don't add code derived from LGPL fwupd sources (reimplement) and don't claim ownership of anything under `reference/`.

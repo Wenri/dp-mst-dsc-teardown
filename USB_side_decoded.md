@@ -1,0 +1,111 @@
+# The USB half of the dock — VIA Labs VL822/VL817 (+ PD)
+
+Companion to [`VMM5310_dump_decoded.md`](VMM5310_dump_decoded.md). That document
+decodes the **DisplayPort** half of the HD-G218 dock (the MegaChips/Kinetic
+VMM5310 MST hub). This one decodes the **USB** half, read live with
+[`vlidump/`](vlidump/) over plain USB.
+
+Same convention as the DP decode: an explicit line between **proven** (standards
+fields, USB descriptors, JEDEC id, register reads off the live chip) and
+**inferred** (chip-internal meanings without VIA Labs' NDA register manual).
+
+## Why the dock needs a second chip at all
+
+A USB-C connector carries four high-speed lanes. In DP Alt Mode the dock split
+them **2 + 2**: two lanes to the VMM5310 for DisplayPort, the remaining
+SuperSpeed pair to a **VIA Labs USB 3 hub**. That single decision is why the DP
+trunk is only 2-lane HBR3 (≈12.96 Gb/s) and therefore why DSC is *load-bearing*
+on the DP side — half the connector was reserved for USB. The USB half is that
+reservation, made silicon.
+
+## The chips (proven)
+
+USB enumeration + live register reads identify three functions:
+
+| USB id | chip | role | evidence |
+|---|---|---|---|
+| `2109:0822` | **VL822** | USB 3.2 Gen2 (10 Gbps) hub, upstream on the Type-C SS pair | `bcdUSB 3.20`, enumerates at 10000M, sysfs `2-1` |
+| `2109:0817` | **VL817** | USB 3.1 Gen1 (5 Gbps) hub, cascaded under the VL822 | `bcdUSB 3.10`, 5000M, sysfs `2-1.1` |
+| `2109:8818` | (VL822 billboard) | USB Billboard device advertising DP Alt Mode | `bDeviceClass 17 Billboard` |
+
+Topology: host xHCI → `2-1` VL822 (10G) → `2-1.1` VL817 (5G) → Gigabit Ethernet
+(RTL8153). Each USB-3 hub presents a SuperSpeed half (`08xx`) and a USB-2 half
+(`28xx`) sharing one firmware revision, so each is one chip.
+
+## How it was read (proven, method)
+
+Unlike the DP/AUX side — which needs NVIDIA's RM ioctl because the driver creates
+no `/dev/drm_dp_aux*` — the VL822 enumerates as an ordinary USB device, so
+`vlidump` reaches it straight through **usbfs** (`USBDEVFS_CONTROL`, stdlib
+ctypes/fcntl). The VLI vendor protocol was reimplemented from fwupd's `plugins/vli`
+(LGPL, reference only — not copied):
+
+```
+register read (1B)  vendor control-IN  bRequest=addr>>8  wValue=addr&0xff  wIndex=0
+SPI flash read      vendor control-IN  bRequest=0xC4     wValue=(addr.hi)|opcode  wIndex=byteswap16(addr)
+```
+
+Read-only by construction: only control-IN transfers, only SPI read opcodes
+(READ_DATA 0x03 / RDID 0x9F), and the kernel `hub` driver is never detached, so
+reading does not disturb the storage/network behind the hub.
+
+## Live readout (proven)
+
+```
+fw (bcdDevice)  : 6.43            # OEM-customized build (running)
+chip id regs    : 18 35  (alt 77 6d)   # VL822 internal id (raw)
+chip ver / pkg  : 0xf0 / 0x00 ; 0xe5
+flash JEDEC id  : a1 40 13        # Fudan FM25F04 — 4Mbit / 512KB SPI-NOR
+```
+
+`A1` = Fudan Microelectronics; capacity byte `0x13` = 4 Mbit = 512 KB.
+
+## Flash layout (proven — 512 KB read in full)
+
+Only ~12% of the flash is used; the rest is erased (`0xFF`).
+
+| Region | Size | Contents |
+|---|---|---|
+| `0x00000` | 256 B | section header (`05 18 30 00 20 00 84 80 …`) |
+| `0x02000–0x0a500` | ~34 KB | **VL822 hub firmware** (8051-class code) + USB descriptors |
+| `0x20000–0x27600` | ~30 KB | **USB-C PD 3.0 controller** firmware + descriptors |
+| `0x27f00` | 256 B | trailer/config |
+| rest | ~360 KB | erased |
+
+### Device descriptor @ `0x07bf2` (proven decode)
+
+`12 01 20 03 09 00 03 09 09 21 22 08 40 06 01 02 03 01` →
+bLength 18, DEVICE, **bcdUSB 0x0320**, class 09 (Hub), bMaxPacket0 512,
+**idVendor 0x2109, idProduct 0x0822**, **bcdDevice 0x0640**, iMfr/iProd/iSerial 1/2/3.
+
+Note the **flash says bcdDevice 6.40 but the live device reports 6.43** — the
+running firmware bumps the version (or an in-field patch did); flagged, not
+explained.
+
+### String descriptors (UTF-16LE, proven)
+
+- Hub bank: `"VIA Labs, Inc."`, `"USB3.1 Hub"`, `"USB2.0 Hub"`, `"USB-C Device"` (billboard).
+- PD bank: `"VLI Inc."`, **`"USB-C PD3.0 Device"`**, and `http://help.vesa.org/dp-usb-type-c/`
+  (the VESA Billboard "additional info" URL).
+
+The PD bank settles a question the DP-side teardown left open: the dock's USB-C
+**PD/alt-mode controller is also VIA Labs**, and its firmware shares this same
+flash. The full USB-C front end (hub + PD3.0 + billboard) is VLI.
+
+## Reference firmware (proven to exist; not committed)
+
+VIA distributes reference firmware via station-drivers (no login). The dock's
+**VL817 reports `bcdDevice 03c4`, and VIA's reference build `03C4` exists**
+(2020-05-11); the primary hub's reference is **VL822-Q8 v5553** (2022-07-25). These
+ship with VIA's Windows MP/ISP tooling (`HUBIspTool.exe`, `HubUpgradeFW.exe`).
+They are OEM-generic, not drop-in for this dock's `6.43` build, and are
+copyrighted — collected out-of-tree, not in this repo (see `NOTICE`).
+
+## Proven vs inferred
+
+- **Proven:** the chip identities (USB descriptors + PIDs), the topology, the
+  JEDEC flash part, the full 512 KB flash map, the device/string descriptors, the
+  PD3.0 bank, the lane-budget rationale, the read method.
+- **Inferred / not yet placed:** the meaning of the VL822 internal id/ver/package
+  registers (`0xf88c/0xf88e/0xf651…`), and the structure of the 8051 firmware code
+  banks. These need VIA Labs' NDA register manual / a disassembly pass.
