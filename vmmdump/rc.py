@@ -106,13 +106,19 @@ class SynapticsRC:
             pos += len(chunk)
         return RC_SUCCESS
 
-    def _get_command(self, opcode: int, offset: int, length: int) -> bytes:
-        """Read path: push offset/len, trigger, read back data, per chunk."""
+    def _get_command(self, opcode: int, offset: int, length: int,
+                     unit: int = UNIT_SIZE) -> bytes:
+        """Read path: push offset/len, trigger, read back data, per chunk.
+
+        ``unit`` is the bytes requested per RC trigger; the transport still
+        chunks each into <=16-byte AUX reads. Defaults to the conservative 16;
+        bulk readers (EEPROM) may pass a larger window to cut the trigger count.
+        """
         out = bytearray()
         pos = offset
         remaining = length
         while remaining:
-            n = min(remaining, UNIT_SIZE)
+            n = min(remaining, unit)
             self.t.write_dpcd(RC_OFFSET, struct.pack("<I", pos))
             self.t.write_dpcd(RC_LEN, struct.pack("<I", n))
             rc = self._trigger(opcode)
@@ -156,6 +162,22 @@ class SynapticsRC:
         if not 0 <= tx <= 3:
             raise ValueError("tx must be 0..3")
         return self._get_command(CMD_READ_FROM_TX_DPCD + tx, addr, length)
+
+    def read_eeprom(self, addr: int, length: int, unit: int = 64) -> bytes:
+        """Read the external SPI EEPROM/flash via RC ReadFromEeprom (0x30).
+
+        READ-ONLY: same get-command framing as read_memory, never a flash write.
+        ``unit`` is the bytes per RC trigger (transport chunks each to <=16-byte
+        AUX); 64 keeps a full-image read tractable.
+
+        Caveat on Panamera (VMM53xx): while the on-chip ESM (the firmware MCU) is
+        running it owns the SPI bus, so these reads SUCCEED but return all-zero.
+        Real flash bytes require disabling the ESM first (REG_ESM_DISABLE 0x2000fc
+        + QUAD/HDCP off, then a reset to recover) -- a disruptive register-write
+        sequence that blanks the live link. This read-only tool does NOT do that;
+        on a live hub treat a zero result as "MCU holds the flash", not empty.
+        """
+        return self._get_command(CMD_READ_FROM_EEPROM, addr, length, unit)
 
     def read_reg32(self, addr: int) -> int:
         """Read one 32-bit register, little-endian (dump.txt convention)."""
