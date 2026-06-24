@@ -1,0 +1,55 @@
+=== VL8xx firmware image (524288 bytes) ===
+container : VL822  magic 05 18  code@0x2000  type 0x0030  word6 0x8084  tail 02 a2
+
+section map (256B):
+  0x00000-0x00100     256B  data
+  0x02000-0x0a500   34048B  data
+  0x20000-0x27600   30208B  data
+  0x27f00-0x28000     256B  data
+
+8051 vectors + entry (code 0x0000 = flash 0x2000):
+  0000: 02 72 86   LJMP 0x7286 -> 0x7286  ; RESET
+  0003: 02 6f 03   LJMP 0x6F03 -> 0x6F03  ; INT0
+  0006: 22         RET
+  0007: 22         RET
+  0008: 22         RET
+  0009: 00         NOP
+  000A: 00         NOP
+  000B: 02 84 1e   LJMP 0x841E -> 0x841E  ; TIMER0
+  000E: 00         NOP
+  000F: 00         NOP
+
+reset handler @0x7286:
+  7286: 78 7f      MOV R0,#0x7F
+  7288: e4         CLR A
+  7289: f6         MOV @R0,A
+  728A: d8 fd      DJNZ R0,0x7289 -> 0x7289
+  728C: 75 81 a4   MOV SP,#0xA4
+  728F: 02 72 cd   LJMP 0x72CD -> 0x72CD
+  7292: 02 37 87   LJMP 0x3787 -> 0x3787
+  7295: e4         CLR A
+  7296: 93         MOVC A,@A+DPTR
+  7297: a3         INC DPTR
+  7298: f8         MOV R0,A
+  7299: e4         CLR A
+  729A: 93         MOVC A,@A+DPTR
+  729B: a3         INC DPTR
+
+USB device descriptors found: 4
+  @0x07bf2  DEVICE  USB 3.20  class 0x09  2109:0822  bcdDevice 6.40  MaxPkt0 9  nCfg 1
+  @0x07d1b  DEVICE  USB 2.10  class 0x09  2109:2822  bcdDevice 6.40  MaxPkt0 64  nCfg 1
+  @0x08440  DEVICE  USB 2.01  class 0x11  2109:8818  bcdDevice 0.01  MaxPkt0 64  nCfg 1
+  @0x24e35  DEVICE  USB 2.01  class 0x11  2109:0103  bcdDevice 0.00  MaxPkt0 64  nCfg 1
+
+USB string descriptors: 11
+  @0x07c77  'VIA Labs, Inc.         '
+  @0x07ca7  'USB3.1 Hub             '
+  @0x07cfa  '000000001'
+  @0x07d76  'VIA Labs, Inc.         '
+  @0x07da6  'USB2.0 Hub             '
+  @0x07e1c  '000000001'
+  @0x084d1  'USB-C Device           '
+  @0x08501  '0000000000000001'
+  @0x24e67  'VLI Inc.'
+  @0x24e79  'USB-C PD3.0 Device'
+  @0x24e9f  '0000000000000001'

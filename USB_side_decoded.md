@@ -102,11 +102,53 @@ They are OEM-generic, not drop-in for this dock's `6.43` build, and are
 copyrighted — archived under [`firmware/`](firmware/) with attribution in
 [`NOTICE`](NOTICE) (the WTFPL does not cover them).
 
+## Decoding the firmware
+
+`vlidump --decode-fw <image>` decodes a VL8xx flash image offline, in three
+layers (no 8051 disassembler ships on a typical box and capstone has no 8051
+core, so `vlidump/i8051.py` is a compact stdlib MCS-51 disassembler — it decodes
+the hub bank with 0% unknown opcodes). Decoded from our live `6.43`:
+
+**Container (proven magic; header fields inferred).** `magic 05 18` = VL822
+(`05 38` = VL817), `code@0x2000` (header byte pair `20 00` = page count ×256).
+Section map: header `0x0`, hub bank `0x02000–0x0a500`, VL103 PD bank
+`0x20000–0x27600`, trailer `0x27f00`. Header `type 0x0030`, `word6 0x8084`, tail
+`02 a2` are not yet placed (likely size/checksum).
+
+**USB descriptors (proven, USB spec).** Four device descriptors, decoded straight
+from flash — the dock's complete USB-visible identity set:
+
+| @flash | descriptor | class |
+|---|---|---|
+| `0x07bf2` | `2109:0822` USB 3.20, bcdDevice **6.40** | 09 Hub (VL822 SS) |
+| `0x07d1b` | `2109:2822` USB 2.10 | 09 Hub (USB-2 companion) |
+| `0x08440` | `2109:8818` USB 2.01 | 11 Billboard (hub alt-mode) |
+| `0x24e35` | `2109:0103` USB 2.01 | 11 Billboard (**VL103 PD**) |
+
+(Flash says bcdDevice **6.40**; the live device reports **6.43** — the running
+firmware bumps it.) All 11 string descriptors decode too (`"VIA Labs, Inc."`,
+`"USB3.1 Hub"`, `"USB-C Device"`, `"VLI Inc."`, `"USB-C PD3.0 Device"`).
+
+**8051 code (opcodes proven; semantics not).** Reset `LJMP 0x7286`; interrupt
+vectors at 0x03/0x0B/0x13/0x1B (INT0/Timer0/INT1/Timer1). The reset handler is a
+recognizable C-runtime start:
+
+```
+7286: MOV R0,#0x7F / CLR A / MOV @R0,A / DJNZ R0,0x7289   ; zero IRAM 0x00-0x7F
+728C: MOV SP,#0xA4                                         ; set stack
+728F: LJMP 0x72CD                                          ; -> main init
+```
+
+The full decode is committed at
+[`firmware/usb-vli/vl822_live_fw_6.43.decoded.txt`](firmware/usb-vli/vl822_live_fw_6.43.decoded.txt).
+
 ## Proven vs inferred
 
 - **Proven:** the chip identities (USB descriptors + PIDs), the topology, the
   JEDEC flash part, the full 512 KB flash map, the device/string descriptors, the
-  PD3.0 bank, the lane-budget rationale, the read method.
-- **Inferred / not yet placed:** the meaning of the VL822 internal id/ver/package
-  registers (`0xf88c/0xf88e/0xf651…`), and the structure of the 8051 firmware code
-  banks. These need VIA Labs' NDA register manual / a disassembly pass.
+  PD3.0 bank, the lane-budget rationale, the read method, the 8051 container
+  layout + vector table + reset handler (disassembled).
+- **Inferred / not yet placed:** the header size/checksum words, the meaning of
+  the VL822 internal id/ver/package registers (`0xf88c/0xf88e/0xf651…`), and the
+  semantics of the 8051 routines beyond the crt0 entry. These need VIA Labs' NDA
+  register manual / a deeper disassembly pass.

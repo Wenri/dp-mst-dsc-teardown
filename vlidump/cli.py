@@ -59,7 +59,15 @@ def main(argv=None) -> int:
     p.add_argument("--spi-len", default="0x80000",
                    help="bytes to read for --spi-dump (default 0x80000 = 512K)")
     p.add_argument("--spi-chunk", default="64", help="bytes per SPI transfer")
+    p.add_argument("--decode-fw", metavar="FILE",
+                   help="offline: decode a VL8xx flash image (no hardware)")
     args = p.parse_args(argv)
+
+    if args.decode_fw:                       # offline, no device needed
+        from . import fw
+        with open(args.decode_fw, "rb") as fh:
+            print(fw.render(fh.read()))
+        return 0
 
     vid, pid = (int(x, 16) for x in args.vidpid.split(":"))
 
