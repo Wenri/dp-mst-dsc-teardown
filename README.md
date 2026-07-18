@@ -8,6 +8,7 @@ This repo covers **both halves** of the dock — the DisplayPort side and the US
 - **[`VMM5310_dump_decoded.md`](VMM5310_dump_decoded.md)** — a full decode of that dump. Every block I could place is placed, every value annotated with where it came from, and an explicit line drawn between *proven from the bits* and *inferred by correlation*.
 - **[`vmmdump/`](vmmdump/)** — the DP capture, reproduced: a Python tool that reads the same hub live from **Linux** over DP AUX — even through the NVIDIA proprietary driver, which exposes no AUX device nodes at all. It re-verified the Windows dump register for register.
 - **[`vlidump/`](vlidump/)** + **[`USB_side_decoded.md`](USB_side_decoded.md)** — the *other* half: the **VIA Labs VL822/VL817** USB hub (and its VIA Labs USB-C PD controller) that carries USB 3 over the Type-C cable's other lane pair. `vlidump` reads it live over plain USB; the decode maps its firmware flash. The dock splits its four Type-C lanes 2 (DP) + 2 (USB) — which is *why* DSC is load-bearing on the DP side.
+- **[`HOST_SIDE_nvidia.md`](HOST_SIDE_nvidia.md)** — the *host* end of the same link: tuning the DSC compression the NVIDIA GPU sends into the hub (10→12 bpp; and a live proof the hub decodes 10 bpc despite its DPCD claiming 8-bit-only), plus a real kernel-driver deadlock in the reverse-PRIME path and its fix. Driver changes live in a fork; this is the writeup and the reasoning.
 
 ## The setup
 

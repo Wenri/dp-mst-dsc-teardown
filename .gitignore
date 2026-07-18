@@ -7,3 +7,6 @@ vmm_*_slots.txt
 
 # NOTE: firmware/ (vendor firmware images + tools + live dumps) IS committed here
 # by choice; it is third-party/copyrighted -- attribution and scope in NOTICE.
+
+# stray background-command output
+nohup.out
