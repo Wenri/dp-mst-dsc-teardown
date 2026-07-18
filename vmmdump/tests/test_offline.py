@@ -52,6 +52,31 @@ def test_tx_outputs():
     assert d.tx[2].kind == "DP" and d.tx[2].lanes == 4
 
 
+class _StubAux:
+    """Replays the pre-reboot baseline capture (vmm_baseline_slots.txt)."""
+
+    def read_dpcd(self, addr, length):
+        if addr == 0x100:                    # LINK_BW_SET / LANE_COUNT_SET
+            return bytes([0x1E, 0x02])       # HBR3 x2
+        if addr == 0x2C0:                    # VC payload table
+            return bytes([3] * 48 + [4] * 12 + [0] * 3)
+        raise AssertionError(f"unexpected DPCD read at {addr:#x}")
+
+
+def test_slots_readout():
+    from vmmdump.slots import read_slots, render_slots
+    st = read_slots(_StubAux())
+    assert st.bw_name == "HBR3" and st.lanes == 2
+    assert round(st.data_gbps, 2) == 12.96
+    assert round(st.slot_mbps, 1) == 202.5
+    assert st.allocated == 60 and st.free == 3
+    assert st.counts()[3] == 48 and st.counts()[4] == 12
+    text = render_slots(st)
+    assert "HBR3 8.10 Gb/s x 2 lane(s)" in text
+    assert "allocated slots: 60/63   free: 3" in text
+    assert "VC/stream id 3: 48 slots" in text
+
+
 def test_edids_recovered():
     rows = addresses.parse_memory(DUMP)
     base = min(rows)

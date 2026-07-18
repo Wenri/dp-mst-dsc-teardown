@@ -49,6 +49,7 @@ The catch it solves: on a dock wired to an NVIDIA GPU there is no `/dev/drm_dp_a
 
 ```sh
 sudo python3 -m vmmdump --edid               # live: identity + decode + EDIDs
+sudo python3 -m vmmdump --slots              # live: MST trunk + VC payload slot table
 python3 -m vmmdump --decode-file dump.txt    # offline: decode this repo's dump
 ```
 

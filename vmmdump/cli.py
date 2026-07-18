@@ -4,6 +4,7 @@
     sudo python3 -m vmmdump                 # detect + identity + decoded summary
     sudo python3 -m vmmdump --raw out.txt   # + full register dump to a file
     sudo python3 -m vmmdump --edid          # + recover monitor EDIDs
+    sudo python3 -m vmmdump --slots         # MST trunk + VC payload slot table
     python3 -m vmmdump --decode-file dump.txt   # offline: decode an existing dump
 """
 from __future__ import annotations
@@ -31,6 +32,43 @@ def cmd_list_devices(args) -> int:
         mark = "  <== Synaptics MST hub" if c.is_hub else ""
         print(f"  [{c.score()}] {c.label}  OUI={c.oui.hex(':')} "
               f"chip=0x{c.chip_id:04X} RC_CAP=0x{c.rc_cap:02X}{mark}")
+    return 0
+
+
+def _close_candidate(cand) -> None:
+    if cand._owner is not None and hasattr(cand._owner, "close"):
+        cand._owner.close()
+    elif hasattr(cand.transport, "close"):
+        cand.transport.close()
+
+
+def _find_hub(args):
+    from . import detect
+    try:
+        return detect.find_hub(args.transport, args.gpu)
+    except RuntimeError as e:
+        _eprint(f"error: {e}")
+        if os.geteuid() != 0:
+            _eprint("hint: AUX/RM access needs root -- try sudo")
+        return None
+
+
+def cmd_slots(args) -> int:
+    """MST trunk + VC payload slot table. Native DPCD only -- no RC session."""
+    from .slots import read_slots, render_slots
+    cand = _find_hub(args)
+    if cand is None:
+        return 2
+    _eprint(f"using {cand.label}  chip=0x{cand.chip_id:04X}")
+    try:
+        text = render_slots(read_slots(cand.transport))
+    finally:
+        _close_candidate(cand)
+    print(text)
+    if args.slots is not True:
+        with open(args.slots, "w") as f:
+            f.write(text + "\n")
+        _eprint(f"wrote slots -> {args.slots}")
     return 0
 
 
@@ -68,15 +106,11 @@ def cmd_offline(args) -> int:
 
 
 def cmd_live(args) -> int:
-    from . import detect, decode, identity as ident_mod, report
+    from . import decode, identity as ident_mod, report
     from .rc import SynapticsRC
 
-    try:
-        cand = detect.find_hub(args.transport, args.gpu)
-    except RuntimeError as e:
-        _eprint(f"error: {e}")
-        if os.geteuid() != 0:
-            _eprint("hint: AUX/RM access needs root -- try sudo")
+    cand = _find_hub(args)
+    if cand is None:
         return 2
     _eprint(f"using {cand.label}  chip=0x{cand.chip_id:04X}")
     transport = cand.transport
@@ -110,10 +144,7 @@ def cmd_live(args) -> int:
             rc.disable()
         except Exception:
             pass
-        if cand._owner is not None and hasattr(cand._owner, "close"):
-            cand._owner.close()
-        elif hasattr(transport, "close"):
-            transport.close()
+        _close_candidate(cand)
 
     decoded = decode.decode_all(regs)
     print(report.render_text(ident, decoded, edids))
@@ -137,6 +168,9 @@ def main(argv=None) -> int:
     p.add_argument("--gpu", type=int, default=0, help="NVIDIA GPU index (nvrm)")
     p.add_argument("--list-devices", action="store_true",
                    help="enumerate AUX sinks and exit")
+    p.add_argument("--slots", metavar="PATH", nargs="?", const=True,
+                   help="read MST trunk + VC payload slot table (native DPCD "
+                        "only, no RC session) and exit; optionally write to PATH")
     p.add_argument("--raw", metavar="PATH", nargs="?", const="vmm_dump.out.txt",
                    help="write full register dump (needs --addresses-from for the "
                         "complete VMMTool address list)")
@@ -153,6 +187,8 @@ def main(argv=None) -> int:
 
     if args.list_devices:
         return cmd_list_devices(args)
+    if args.slots:
+        return cmd_slots(args)
     if args.decode_file:
         return cmd_offline(args)
     return cmd_live(args)

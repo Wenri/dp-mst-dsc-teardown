@@ -29,6 +29,7 @@ python3 -m vmmdump --decode-file dump.txt --edid
 # live against the hub (needs root; NVIDIA RM or /dev/drm_dp_aux*)
 sudo python3 -m vmmdump                     # detect + identity + decoded summary
 sudo python3 -m vmmdump --list-devices      # enumerate AUX sinks
+sudo python3 -m vmmdump --slots             # MST trunk + VC payload slot table (native DPCD, no RC)
 sudo python3 -m vmmdump --addresses-from dump.txt \
      --raw vmm.out.txt --decode vmm.decoded.txt --json vmm.json --edid
 ```
@@ -46,10 +47,11 @@ Layered pipeline; each layer only knows the one below:
 - **`detect.py`** — probes every sink on every transport for Synaptics OUI `90:CC` + RC capability + chip id `0x5xxx`; scores candidates.
 - **`addresses.py`** — parser for the VMMTool `dump.txt` format (register section, memory section, EDIDs). Dual use: derives the exact address list for live re-dumps, and provides the register map for offline decoding.
 - **`identity.py` / `dumper.py` / `edid.py`** — read identity DPCD + board id, coalesce addresses into runs and RC-read them, scan hub SRAM for valid 128-byte EDID blocks.
-- **`decode.py`** — interprets registers into link / RFRM stream timings (MSA at base+0x30, packed `(vertical<<16)|horizontal`) / DSC 1.2 PPS / TX outputs. Register meanings trace back to `VMM5310_dump_decoded.md`.
+- **`decode.py`** — interprets registers into link / RFRM stream timings (MSA at base+0x30, packed `(vertical<<16)|horizontal`) / DSC 1.2 PPS (incl. bits-per-component) / TX outputs. Register meanings trace back to `VMM5310_dump_decoded.md`.
+- **`slots.py`** — MST trunk + VC Payload ID table readout (DPCD `0x100`/`0x2C0–0x2FE`, standards-defined). Native DPCD only — no RC session.
 - **`report.py` + `cli.py`** — text/raw/JSON output. The `--raw` format is intentionally re-parseable by `addresses.py` (same shape as `dump.txt`).
 
-The CLI has three modes: `--list-devices`, offline (`--decode-file`, transport/RC never touched), and live (default).
+The CLI has four modes: `--list-devices`, `--slots` (native DPCD only, RC never touched), offline (`--decode-file`, transport/RC never touched), and live (default).
 
 ## Hard constraints
 

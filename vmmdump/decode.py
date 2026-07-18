@@ -73,6 +73,7 @@ class DscInfo:
     ctrl: int
     version: str = ""
     line_buf_depth: int = 0
+    bpc: int = 0
     bpp: float = 0.0
     pic_w: int = 0
     pic_h: int = 0
@@ -91,6 +92,7 @@ def read_dsc(regs, rfrm: int) -> DscInfo:
         return info
     ver = regs.get(base + 0x08, 0)
     info.version = f"{(ver >> 28) & 0xF}.{(ver >> 24) & 0xF}"  # 0x12.. -> 1.2
+    info.bpc = (ver >> 4) & 0xF        # PPS byte 3 [7:4] bits_per_component
     info.line_buf_depth = ver & 0xF
     bpp_h = regs.get(base + 0x0C, 0)
     info.bpp = (bpp_h >> 16 & 0xFFF) / 16.0       # 0x0A0 -> 10.00
@@ -100,7 +102,8 @@ def read_dsc(regs, rfrm: int) -> DscInfo:
     sl = regs.get(base + 0x14, 0)
     info.slice_w, info.chunk_size = _hi(sl), _lo(sl)
     if info.bpp:
-        info.ratio = 24.0 / info.bpp                # RGB888 source
+        src = 3 * info.bpc if info.bpc else 24      # RGB, bpc from PPS
+        info.ratio = src / info.bpp
     return info
 
 
@@ -237,8 +240,9 @@ def render(d: Decoded) -> list[str]:
         out.append(f"   {s.timing.line()}")
         if s.dsc.enabled:
             out.append(f"   DSC {s.dsc.version}: PIC {s.dsc.pic_w}x{s.dsc.pic_h}, "
-                       f"Slice {s.dsc.slice_w}x{s.dsc.slice_h}, {s.dsc.bpp:.2f} bpp, "
-                       f"ratio {s.dsc.ratio:.1f}:1, chunk {s.dsc.chunk_size}, "
+                       f"Slice {s.dsc.slice_w}x{s.dsc.slice_h}, {s.dsc.bpc} bpc -> "
+                       f"{s.dsc.bpp:.2f} bpp, ratio {s.dsc.ratio:.1f}:1, "
+                       f"chunk {s.dsc.chunk_size}, "
                        f"line-buf {s.dsc.line_buf_depth}")
         else:
             out.append(f"   DSC: off (ctrl=0x{s.dsc.ctrl:08X})")
