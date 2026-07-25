@@ -219,8 +219,8 @@ material.
   driver iteration needs `update-initramfs -u -k <ver>` before reboot, else the
   stale module loads. (This bit us once; verify with
   `lsinitramfs … | modinfo -F srcversion`.)
-- Rollback: `git revert` on the fork, or the original blob driver backed up at
-  `/usr/src/nvidia-610.43.02.blob.bak`.
+- Rollback: `git revert` on the fork, or the original proprietary-blob driver
+  package backed up at `/usr/src/nvidia-610.43.02.bak`.
 
 ## Honest limits
 
