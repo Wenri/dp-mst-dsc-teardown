@@ -1,0 +1,5 @@
+[submodule "open-gpu-kernel-modules"]
+	path = open-gpu-kernel-modules
+	url = https://github.com/gt4o4/open-gpu-kernel-modules.git
+	branch = 610.43.02-dock
+	shallow = true

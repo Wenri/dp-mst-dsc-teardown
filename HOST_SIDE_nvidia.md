@@ -14,6 +14,9 @@ changes live in a fork, not in this repo:
 
 > **github.com/gt4o4/open-gpu-kernel-modules**, branch `610.43.02-dock`
 > (upstream tag `610.43.03` relabelled to match the 610.43.02 userspace/GSP).
+> Vendored in this repo as the [`open-gpu-kernel-modules/`](open-gpu-kernel-modules/)
+> submodule, pinned to the exact deployed commit — `git submodule update
+> --init` fetches it (shallow, per `.gitmodules`).
 
 The findings below are **proven from live measurement** unless flagged otherwise:
 the hub register/slot readouts come from `vmmdump` (this repo), the PCIe and

@@ -8,7 +8,7 @@ This repo covers **both halves** of the dock — the DisplayPort side and the US
 - **[`VMM5310_dump_decoded.md`](VMM5310_dump_decoded.md)** — a full decode of that dump. Every block I could place is placed, every value annotated with where it came from, and an explicit line drawn between *proven from the bits* and *inferred by correlation*.
 - **[`vmmdump/`](vmmdump/)** — the DP capture, reproduced: a Python tool that reads the same hub live from **Linux** over DP AUX — even through the NVIDIA proprietary driver, which exposes no AUX device nodes at all. It re-verified the Windows dump register for register.
 - **[`vlidump/`](vlidump/)** + **[`USB_side_decoded.md`](USB_side_decoded.md)** — the *other* half: the **VIA Labs VL822/VL817** USB hub (and its VIA Labs USB-C PD controller) that carries USB 3 over the Type-C cable's other lane pair. `vlidump` reads it live over plain USB; the decode maps its firmware flash. The dock splits its four Type-C lanes 2 (DP) + 2 (USB) — which is *why* DSC is load-bearing on the DP side.
-- **[`HOST_SIDE_nvidia.md`](HOST_SIDE_nvidia.md)** — the *host* end of the same link: tuning the DSC compression the NVIDIA GPU sends into the hub (10→12 bpp; and a live proof the hub decodes 10 bpc despite its DPCD claiming 8-bit-only), plus two real driver bugs run to ground on the reverse-PRIME path — a kernel deadlock, and GSP firmware fence events that occasionally vanish (~1 in 12,000, each one a silent 5-second freeze; fixed with a redundant interrupt-driven wakeup). Driver changes live in a fork; this is the writeup and the reasoning.
+- **[`HOST_SIDE_nvidia.md`](HOST_SIDE_nvidia.md)** — the *host* end of the same link: tuning the DSC compression the NVIDIA GPU sends into the hub (10→12 bpp; and a live proof the hub decodes 10 bpc despite its DPCD claiming 8-bit-only), plus two real driver bugs run to ground on the reverse-PRIME path — a kernel deadlock, and GSP firmware fence events that occasionally vanish (~1 in 12,000, each one a silent 5-second freeze; fixed with a redundant interrupt-driven wakeup). The patched driver lives in a fork, vendored here as the [`open-gpu-kernel-modules`](open-gpu-kernel-modules/) submodule pinned to the exact deployed commit (`git submodule update --init` fetches it shallow); this file is the writeup and the reasoning.
 
 ## The setup
 
@@ -64,6 +64,8 @@ The [`reference/`](reference/) folder holds the third-party documents this teard
 - `HD-G218_User_manual.pdf` — the dock's own manual.
 
 **These are not mine and not under the WTFPL** — they remain under their original owners' copyright and are bundled here for reference only. See [`NOTICE`](NOTICE). Rights holders who want a file pulled: open an issue and it's gone.
+
+Likewise the [`open-gpu-kernel-modules`](open-gpu-kernel-modules/) submodule: NVIDIA's driver source under its own MIT/GPL-2.0 dual license, plus this repo's patches contributed under the same terms — not WTFPL.
 
 ## License
 
