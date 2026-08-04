@@ -9,14 +9,22 @@ firmware's fence-completion events from silently going missing.
 
 This is a different domain from the dock RE: it is host GPU-driver work, specific
 to this laptop (ASUS ROG Strix G533QS — RTX 3080 Laptop + AMD Cezanne iGPU, the
-dock's USB-C wired to the NVIDIA side), on `nvidia-open` **610.43**. All driver
-changes live in a fork, not in this repo:
+dock's USB-C wired to the NVIDIA side), on `nvidia-open` **610.57** (the work
+was originally done on 610.43). All driver changes live in a fork, not in this
+repo:
 
-> **github.com/gt4o4/open-gpu-kernel-modules**, branch `610.43.02-dock`
-> (upstream tag `610.43.03` relabelled to match the 610.43.02 userspace/GSP).
-> Vendored in this repo as the [`open-gpu-kernel-modules/`](open-gpu-kernel-modules/)
-> submodule, pinned to the exact deployed commit — `git submodule update
-> --init` fetches it (shallow, per `.gitmodules`).
+> **github.com/gt4o4/open-gpu-kernel-modules**, branch `610.57.04-dock`
+> (upstream tag `610.57.04`). Vendored in this repo as the
+> [`open-gpu-kernel-modules/`](open-gpu-kernel-modules/) submodule, pinned to
+> the exact deployed commit — `git submodule update --init` fetches it
+> (shallow, per `.gitmodules`).
+>
+> Each driver release gets its own `<version>-dock` branch: the patch series is
+> cherry-picked onto the new upstream tag and the old branch stays as the
+> rollback point. The 610.43 branch (`610.43.02-dock`, upstream tag `610.43.03`
+> relabelled to match that release's 610.43.02 userspace) is the predecessor.
+> Rebasing 610.43 → 610.57 was conflict-free: NVIDIA changed neither
+> `nvidia-drm-fence.c` nor `nvkms-kapi-sync.c` between the two tags.
 
 The findings below are **proven from live measurement** unless flagged otherwise:
 the hub register/slot readouts come from `vmmdump` (this repo), the PCIe and
@@ -53,7 +61,7 @@ decode, the driver DSC-compressed the *10-bit* ViewSonic stream (PPS read back:
 10 bpc, 11.0 bpp, 2.7:1) and the hub decoded it to a stable picture for ~30 min.
 Not deployed — at 2.7:1 the subpixel-text artifacts are visible, and leaving the
 10-bit monitor uncompressed is better here. Kept on the fork's
-`610.43.02-dock-10bpc-advertise` branch as a documented experiment.
+`610.43.02-dock-10bpc-advertise` branch (on the 610.43 series) as a documented experiment.
 
 *Inferred, not proven:* that the same defines govern every MST DSC stream (we
 only observed D1 + this one monitor pair).
@@ -101,14 +109,19 @@ The driver already ships a *second*, correctly-bounded fence class — the
 semaphore-surface ("semsurf") fences used for Vulkan/Wayland explicit sync, with
 a per-context workthread + one-shot timer and a 5 s `-ETIMEDOUT` backstop.
 
-1. **Unify** both classes onto that one timeout engine (fork commit `00779c7`):
-   prime fences now ride the semsurf timer instead of hanging. Shared
-   pending-list / drain / force-complete / timeout, with a 2-op vtable
-   (`read_seqno`, `update`) for the parts that genuinely differ (NvKms backend,
-   32- vs 64-bit seqno). UAPI unchanged (all 7 fence ioctls identical).
+Both steps below now live in one fork commit, *"nvidia-drm: give fences a
+shared bounded-time signaling engine"* (commit hashes are deliberately not
+cited: the series is rebased onto each new upstream tag, so it is the commit
+subjects that are stable, not their SHAs).
 
-2. **Fix the review findings** (fork commit `812fed8`), from three independent
-   adversarial code reviews of the unified engine:
+1. **Unify** both classes onto that one timeout engine: prime fences now ride
+   the semsurf timer instead of hanging. Shared pending-list / drain /
+   force-complete / timeout, with a 2-op vtable (`read_seqno`, `update`) for
+   the parts that genuinely differ (NvKms backend, 32- vs 64-bit seqno). UAPI
+   unchanged (all 7 fence ioctls identical).
+
+2. **Fix the review findings**, from three independent adversarial code
+   reviews of the unified engine:
    - a **double-free/UAF** in both fence-context create ioctls (a redundant
      `destroy` after the ref-drop already frees — pre-existing upstream);
    - a **hot-path hang** where a reordered stale timer arm + the re-arm dedup
@@ -164,15 +177,17 @@ lives:
   bound via a channel-bind control nothing kernel-side can reach — a
   kernel-built surface over the prime semaphore memory would never fire.
 
-The fix — fork commits `b9aa06d`, `aab24a4`, `c1fadc5` — is a **second,
-GSP-independent hardware wakeup**, plus hardening and instrumentation:
+The fix is a **second, GSP-independent hardware wakeup**, plus hardening and
+instrumentation — two fork commits, *"bif: retrigger interrupt top level after
+config-space MSI EOI"* and *"nvidia-drm: add a GSP-independent nonstall wakeup
+for prime fences"*:
 
-1. **MSI re-arm hardening** (`b9aa06d`): the plain-MSI branch of
+1. **MSI re-arm hardening**: the plain-MSI branch of
    `kbifCheckAndRearmMSI()` now also calls `intrRetriggerTopLevel()` after
    the config-space EOI — parity with the MSI-X branch and with post-Ampere
    chips. Primary beneficiary is the semsurf/Vulkan path; cost is a few
    extra MMIO writes per interrupt.
-2. **Redundant non-stall wakeup for prime fences** (`aab24a4`): the same
+2. **Redundant non-stall wakeup for prime fences**: the same
    semaphore release the firmware should report also raises the **host
    non-stall interrupt** (`FIFO_EVENT_MTHD`), serviced by CPU-RM directly —
    and on GA100+ every serviced engine non-stall edge additionally
@@ -184,8 +199,8 @@ GSP-independent hardware wakeup**, plus hardening and instrumentation:
    the next non-stall edge — same frame — instead of the 5 s timer. Also:
    per-context delivery counters and sparse logs, so previously-silent
    timer recoveries now print with totals.
-3. **Registration lifecycle fix** (`c1fadc5`) — found *by* those
-   diagnostics on the first post-deploy freeze, which logged
+3. **Registration lifecycle fix** (folded into the same commit) — found *by*
+   those diagnostics on the first post-deploy freeze, which logged
    `timer=1 ch_ev=11691 ns_kick=0 ns_idle=0`: eleven thousand channel
    events, zero non-stall deliveries on the hot context, while the boot
    log's "path is live" line proved the mechanism worked… for an earlier,
@@ -217,13 +232,27 @@ material.
 ## Deploy notes (this machine)
 
 - Built + signed via DKMS for the two live kernels (7.0.0-28, 7.0.0-14).
+- The distro's `nvidia-kernel-source-open` package ships only a *flattened*
+  `kernel-open/` tree plus prebuilt `nv-kernel.o_binary` /
+  `nv-modeset-kernel.o_binary`. Two of these patches live in `src/nvidia` and
+  `src/nvidia-modeset`, i.e. *inside* those binaries — so the fork's full
+  source tree replaces `/usr/src/nvidia-<version>` and carries its own
+  `dkms.conf` (top-level `make modules`, `.ko` files in `kernel-open/`).
 - **Kernel-7.0 gotcha:** `dkms install` does *not* refresh the initramfs, and
   with early KMS the initramfs copy of `nvidia-drm.ko` wins at boot — so every
   driver iteration needs `update-initramfs -u -k <ver>` before reboot, else the
   stale module loads. (This bit us once; verify with
   `lsinitramfs … | modinfo -F srcversion`.)
-- Rollback: `git revert` on the fork, or the original proprietary-blob driver
-  package backed up at `/usr/src/nvidia-610.43.02.bak`.
+- **Every distro driver upgrade silently reverts this.** apt replaces
+  `/usr/src/nvidia-<version>`, unregisters the patched DKMS module and installs
+  the stock one for all kernels, so the next boot runs unpatched (and, until
+  the rebuild, the running kernel module mismatches the freshly upgraded
+  userspace — `nvidia-smi` reports a version mismatch). Recovery is: cherry-pick
+  the series onto the new upstream tag, reinstall the fork tree, rebuild both
+  kernels, refresh both initramfs.
+- Rollback: `git checkout` the previous `<version>-dock` branch, or the stock
+  tree of the current release backed up at
+  `/usr/src/nvidia-<version>.distro.bak`.
 
 ## Honest limits
 
